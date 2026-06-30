@@ -36,11 +36,15 @@ either by exact part number ("specs for 763A00-11320000/A") or by requirement
 ("a 24V modulating actuator for at least 100 Nm"). The service answers using **only
 catalog data retrieved through tools** — it never fabricates specs or part numbers.
 
-It exposes the same two capabilities three ways:
+It exposes the same two capabilities two ways:
 
-- **REST API** — `POST /api/conversation` (and a streaming SSE variant)
-- **MCP server** — `/mcp/`, so Claude Desktop / Cursor / any MCP client can use it as a tool
-- **Python tools** — `get_actuator_by_part_number`, `recommend_actuators`
+- **REST API** — `POST /api/conversation` (the assessment contract; plus an optional
+  `POST /api/conversation/stream` SSE variant)
+- **MCP server** — `/mcp/`, so Claude Desktop / Cursor / any MCP client can call
+  `get_actuator` and `recommend` as tools
+
+Under the hood both share the same two LangChain tools (`get_actuator_by_part_number`,
+`recommend_actuators`) and the same agent.
 
 The catalog: **111 actuator configurations** (64 distinct base part numbers across
 voltages, enclosures, and application types), extracted from the Series 76 PDF datasheet.
