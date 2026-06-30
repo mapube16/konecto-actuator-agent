@@ -450,6 +450,16 @@ python scripts/eval.py --compare-prompts prompts/proactive.txt   # A/B prompt va
 Opens `eval_report.html` — a self-contained Chart.js dashboard (accuracy by category,
 retrieval segments, historical trend, per-case regression tags).
 
+### Accuracy was measured, not assumed
+
+The agent started at **60%** E2E accuracy and was iterated to **100%** — each step driven by
+the eval, not intuition (the full story is in [`docs/ITERATION.md`](docs/ITERATION.md)).
+
+![Accuracy progression across eval runs](docs/accuracy_progression.png)
+
+> The green line (retrieval recall@5) stays flat while accuracy climbs — proof the gains came
+> from prompt/tool fixes, not from changing the index. The red dotted line is the 80% gate.
+
 ### 1. Is the agent accurate? (end-to-end)
 
 11 cases, each graded by the cheapest reliable method:
