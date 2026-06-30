@@ -195,14 +195,25 @@ for full reproducibility and to handle a different/updated PDF.
 ## Docker
 
 ```bash
-docker compose up
+cp .env.example .env    # set OPENAI_API_KEY
+docker compose up --build
+# then, in another terminal:
+curl http://localhost:8000/health        # {"status":"ok"}
 ```
+
+That's the whole flow — **no manual ingest step.** On first boot the entrypoint runs
+`scripts/ingest.py` (it sees the empty data volume), builds SQLite + ChromaDB from the
+baked-in `data/actuators.json`, then starts the server. Subsequent starts skip ingest
+because the volume already has `actuators.db`.
 
 - Multi-stage build, runs as **non-root** (UID 10001), **tini** as PID 1 for signal handling.
 - `docker-compose.yml` mounts a named volume `actuator-data` at `/app/data` (SQLite,
   ChromaDB, memory DB persist across restarts).
 - Health check probes `GET /health` (30s interval, 20s start period).
-- Set secrets via an `.env` file or compose `environment:` — never bake keys into the image.
+- Set secrets via the `.env` file — never bake keys into the image.
+
+> First boot does one round of embedding calls (ingest), so give it a few seconds before
+> the health check passes. `OPENAI_API_KEY` must be set or ingest fails fast with a clear error.
 
 ---
 

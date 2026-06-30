@@ -19,14 +19,17 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY app/ app/
 COPY scripts/ scripts/
+# summary.txt → system prompt; actuators.json → ingest source. Both must be baked in
+# because the data/ volume mounts empty on first run and the entrypoint ingests from them.
 COPY data/summary.txt data/summary.txt
+COPY data/actuators.json data/actuators.json
 
-# data/ is volume-mounted at runtime; pre-create dir so mount point is owned by appuser
+# data/ (db, chroma) is volume-mounted at runtime; pre-create so the mount is owned by appuser
 RUN mkdir -p /app/data && chown -R appuser:appuser /app
 
 USER appuser
 
 EXPOSE 8000
 
-ENTRYPOINT ["tini", "--"]
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# tini reaps zombies + forwards signals; entrypoint ingests on first boot then serves.
+ENTRYPOINT ["tini", "--", "sh", "scripts/docker-entrypoint.sh"]
