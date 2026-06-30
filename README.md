@@ -17,15 +17,16 @@
 5. [Local setup](#local-setup)
 6. [Docker](#docker)
 7. [Configuration](#configuration)
-8. [API reference](#api-reference)
-9. [MCP integration](#mcp-integration)
-10. [Evaluation & quality](#evaluation--quality)
-11. [Testing](#testing)
-12. [Project layout](#project-layout)
-13. [Design decisions](#design-decisions)
-14. [Security](#security)
-15. [Troubleshooting](#troubleshooting)
-16. [For AI agents](#for-ai-agents)
+8. [Quickstart — copy-paste examples](#quickstart--copy-paste-examples)
+9. [API reference](#api-reference)
+10. [MCP integration](#mcp-integration)
+11. [Evaluation & quality](#evaluation--quality)
+12. [Testing](#testing)
+13. [Project layout](#project-layout)
+14. [Design decisions](#design-decisions)
+15. [Security](#security)
+16. [Troubleshooting](#troubleshooting)
+17. [For AI agents](#for-ai-agents)
 
 ---
 
@@ -171,6 +172,11 @@ data/actuators.db  +  data/chroma/
 ```
 
 **Stage 1 — extract (optional, only to regenerate the JSON):**
+
+Uses **Google Gemini 2.5 Flash via OpenRouter** for the PDF → JSON extraction — a
+multimodal model reads the datasheet tables directly (no brittle PDF-text parsing) and the
+output is validated row-by-row against the Pydantic `Actuator` schema before it's written.
+
 ```bash
 # Requires OPENROUTER_API_KEY. Reads data/raw/series_76_tables.pdf,
 # writes data/actuators.json (validated against the Pydantic schema).
@@ -178,6 +184,11 @@ python scripts/extract_pdf.py
 # or point at a different PDF (e.g. the assessment's series_76_electric_data.pdf):
 python scripts/extract_pdf.py path/to/series_76_electric_data.pdf
 ```
+
+> **Why Gemini for extraction (not the chat model)?** The datasheet is a dense, multi-column
+> table PDF. Gemini 2.5 Flash is multimodal and cheap, reads the tables natively, and this is
+> a **one-shot offline step** — the result (`data/actuators.json`) is committed, so the model
+> choice here is independent of the runtime agent (`gpt-5-mini`).
 
 > **Note:** re-extraction is **optional** — `data/actuators.json` is already committed, so
 > `ingest.py` alone reproduces the databases. The bundled `data/raw/series_76_tables.pdf` is
@@ -200,16 +211,33 @@ for full reproducibility and to handle a different/updated PDF.
 ## Docker
 
 ```bash
-cp .env.example .env    # set OPENAI_API_KEY
-docker compose up --build
-# then, in another terminal:
-curl http://localhost:8000/health        # {"status":"ok"}
+cp .env.example .env          # set OPENAI_API_KEY
+docker compose up --build     # build the image, run ingest on first boot, serve
+
+# then, in another terminal — bash:
+curl http://localhost:8000/health
+# …or Windows PowerShell:
+Invoke-RestMethod http://localhost:8000/health
+# → {"status":"ok"}
 ```
 
 That's the whole flow — **no manual ingest step.** On first boot the entrypoint runs
 `scripts/ingest.py` (it sees the empty data volume), builds SQLite + ChromaDB from the
-baked-in `data/actuators.json`, then starts the server. Subsequent starts skip ingest
-because the volume already has `actuators.db`.
+baked-in `data/actuators.json`, then starts the server. You'll see in the logs:
+
+```
+agent-1  | [entrypoint] data volume empty — running ingest.py...   ← first boot only
+agent-1  | INFO:     Application startup complete.
+agent-1  | INFO:     Uvicorn running on http://0.0.0.0:8000
+```
+
+Subsequent starts **skip ingest** (`[entrypoint] actuators.db present — skipping ingest`)
+because the named volume persists `actuators.db` across `docker compose down` / `up`.
+
+```bash
+docker compose down       # stop & remove the container — KEEPS the data volume
+docker compose down -v     # also wipe the volume → next `up` re-runs ingest from scratch
+```
 
 - Multi-stage build, runs as **non-root** (UID 10001), **tini** as PID 1 for signal handling.
 - `docker-compose.yml` mounts a named volume `actuator-data` at `/app/data` (SQLite,
@@ -219,6 +247,7 @@ because the volume already has `actuators.db`.
 
 > First boot does one round of embedding calls (ingest), so give it a few seconds before
 > the health check passes. `OPENAI_API_KEY` must be set or ingest fails fast with a clear error.
+> **Windows:** Docker Desktop must be running (WSL2 backend) before `docker compose up`.
 
 ---
 
@@ -229,14 +258,83 @@ All config is environment-driven (`app/config.py`, Pydantic `BaseSettings`). See
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `OPENAI_API_KEY` | — (required) | LLM + embeddings |
-| `MODEL_NAME` | `gpt-5-mini` | Chat model (use `gpt-5.1` for final delivery) |
+| `MODEL_NAME` | `gpt-5-mini` | Chat model (all three permitted models tie at 100% — see [model comparison](docs/MODEL_COMPARISON.md)) |
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | Embedding model for ChromaDB |
 | `SQLITE_DB_PATH` | `data/actuators.db` | Catalog DB |
 | `CHROMA_PATH` | `data/chroma` | Vector index dir |
 | `MEMORY_DB_PATH` | `data/memory.db` | Conversation checkpointer DB |
 | `RATE_LIMIT` | `30/minute` | Per-IP rate limit |
-| `OPENROUTER_API_KEY` | — | (Optional) eval LLM-judge + `scripts/extract_pdf.py` |
+| `OPENROUTER_API_KEY` | — | (Optional) eval LLM-judge + PDF extraction (`scripts/extract_pdf.py`, Gemini 2.5 Flash) |
 | `EVAL_JUDGE_MODEL` | `openai/gpt-4o-mini` | (Optional) OpenRouter model for the eval judge |
+
+---
+
+## Quickstart — copy-paste examples
+
+Once the server is up (`uvicorn app.main:app` or `docker compose up`), these are the four
+things worth trying. Each is shown for **bash/macOS/Linux** and **Windows PowerShell**.
+
+### 1. Health check
+```bash
+curl http://localhost:8000/health
+```
+```powershell
+Invoke-RestMethod http://localhost:8000/health
+```
+→ `{"status":"ok"}`
+
+### 2. Exact part-number lookup
+```bash
+curl -X POST http://localhost:8000/api/conversation \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What are the specs for 763A00-11320000/A?"}'
+```
+```powershell
+Invoke-RestMethod -Uri http://localhost:8000/api/conversation -Method POST `
+  -ContentType "application/json" `
+  -Body '{"query": "What are the specs for 763A00-11320000/A?"}'
+```
+→ `{"answer":"The 763A00-11320000/A is a weatherproof, 110V ... ","session_id":"<uuid>"}`
+
+### 3. Natural-language recommendation
+```bash
+curl -X POST http://localhost:8000/api/conversation \
+  -H "Content-Type: application/json" \
+  -d '{"query": "I need a 24V modulating actuator for at least 100 Nm"}'
+```
+```powershell
+Invoke-RestMethod -Uri http://localhost:8000/api/conversation -Method POST `
+  -ContentType "application/json" `
+  -Body '{"query": "I need a 24V modulating actuator for at least 100 Nm"}'
+```
+→ The agent extracts filters (voltage=24V, application=modulating, torque≥100 Nm), runs
+SQL + ChromaDB, and returns ranked real part numbers — never a fabricated one.
+
+### 4. Multi-turn follow-up (memory)
+First call returns a `session_id`; pass it back to continue the conversation:
+```bash
+# First turn — note the session_id in the response
+curl -X POST http://localhost:8000/api/conversation \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Recommend a weatherproof 110V on/off actuator."}'
+
+# Follow-up — reuse that session_id, ask about "it" without repeating context
+curl -X POST http://localhost:8000/api/conversation \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What is its torque rating?", "session_id": "<uuid-from-above>"}'
+```
+```powershell
+$r = Invoke-RestMethod -Uri http://localhost:8000/api/conversation -Method POST `
+  -ContentType "application/json" `
+  -Body '{"query": "Recommend a weatherproof 110V on/off actuator."}'
+Invoke-RestMethod -Uri http://localhost:8000/api/conversation -Method POST `
+  -ContentType "application/json" `
+  -Body (@{ query = "What is its torque rating?"; session_id = $r.session_id } | ConvertTo-Json)
+```
+
+> **PowerShell gotcha:** paste each command on its own — don't include the `PS C:\...>`
+> prompt prefix. For inline JSON, single-quote the `-Body` so PowerShell doesn't try to
+> expand it; for dynamic values use `@{ ... } | ConvertTo-Json` as in turn 2 above.
 
 ---
 
@@ -392,6 +490,24 @@ against the previous one and tags each case **improved / regressed / unchanged /
 This is how the production prompt was chosen: an A/B showed the "proactive" variant moved
 recommendation accuracy from 1/3 → 3/3, so it was promoted — **measured, not assumed.**
 
+### Which chat model? (decided with data)
+
+The same eval suite was run **3× against each** of the three permitted models
+(`gpt-5-mini`, `gpt-5.1`, `gpt-5.2`) against the **real** LLM. Full results, per-model
+progression charts, and the side-by-side comparison are in
+[`docs/MODEL_COMPARISON.md`](docs/MODEL_COMPARISON.md).
+
+| Model | Mean E2E accuracy | Retrieval recall@5 |
+|-------|-------------------|--------------------|
+| `gpt-5-mini` | 100% | 88% |
+| `gpt-5.1` | 100% | 88% |
+| `gpt-5.2` | 100% | 88% |
+
+All three tie at 100% — the **retrieval pipeline is the dominant factor, not the chat
+model** (recall@5 is identical because it depends only on the embedding model). `gpt-5-mini`
+is kept as the default: cost-optimal with no accuracy loss. Reproduce with
+`python scripts/compare_models.py`.
+
 ---
 
 ## Testing
@@ -442,7 +558,8 @@ konecto-assessment/
 ├── scripts/
 │   ├── ingest.py          # idempotent: JSON → validated → SQLite + ChromaDB
 │   ├── eval.py            # evaluation CLI
-│   └── extract_pdf.py     # PDF → structured JSON (Gemini/OpenRouter)
+│   ├── extract_pdf.py     # PDF → structured JSON (Gemini 2.5 Flash via OpenRouter)
+│   └── compare_models.py  # eval the 3 permitted chat models, 3 runs each (docs/MODEL_COMPARISON.md)
 ├── tests/                 # pytest suite (mocked, offline)
 ├── docs/EVAL.md           # evaluation harness guide
 ├── data/

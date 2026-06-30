@@ -24,9 +24,6 @@ class Settings(BaseSettings):
     )
     chroma_path: str = Field("data/chroma", validation_alias=AliasChoices("CHROMA_PATH", "chroma_path"))
     rate_limit: str = Field("30/minute", validation_alias=AliasChoices("RATE_LIMIT", "rate_limit"))
-    cache_ttl: int = 3600
-    cache_max_size: int = 500
-    log_level: str = "INFO"
 
 
 settings = Settings()

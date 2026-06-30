@@ -5,7 +5,7 @@ and renders the narrative:
   - docs/model_run_<model>.png   one progression chart per model (accuracy across its runs)
   - docs/model_comparison.png    grouped bars: mean accuracy + retrieval recall per model
   - docs/MODEL_COMPARISON.md     table + takeaways
-  - eval_runs/model_comparison.json   raw results (committed as evidence)
+  - docs/model_comparison.json   raw results (committed as evidence)
 
 Retrieval recall depends only on the embedding model (unchanged across chat models), so it's
 measured once and shown as a constant reference.
@@ -42,7 +42,10 @@ from app.eval.cases import CASES  # noqa: E402
 
 _ROOT = Path(__file__).resolve().parent.parent
 DOCS = _ROOT / "docs"
-RUNS_OUT = _ROOT / "eval_runs" / "model_comparison.json"
+# Lives in docs/, not eval_runs/: this is a model-comparison artifact, not a progression
+# run. Keeping it out of eval_runs/ keeps that dir's *.json glob (history/plot_progress)
+# to uniform run records — a differently-shaped file there would KeyError the diff.
+RUNS_OUT = DOCS / "model_comparison.json"
 
 DEFAULT_MODELS = ["gpt-5-mini", "gpt-5.1", "gpt-5.2"]
 
