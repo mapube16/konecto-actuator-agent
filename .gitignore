@@ -1,0 +1,15 @@
+*.db
+*.db-shm
+*.db-wal
+data/chroma/
+__pycache__/
+*.pyc
+.env
+.venv/
+*.egg-info/
+dist/
+.pytest_cache/
+
+# Eval artifacts: run history is local; the HTML report regenerates from `python scripts/eval.py`
+eval_runs/
+eval_report.html

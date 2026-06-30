@@ -1,0 +1,18 @@
+Series 76 Electric Actuators
+
+The Series 76 is a line of heavy-duty electric actuators used as critical components in industrial automation. These devices remotely open, close, or precisely control valves and dampers across a wide range of applications, from HVAC systems to industrial processing plants.
+
+Enclosure Types
+The Series 76 is available in two enclosure configurations. Weatherproof models are designed for general industrial use, protected against dust, rain, and environmental elements, compliant with CSA, CE, and UKCA standards. Explosionproof models feature a more robust enclosure built to operate safely in hazardous environments where flammable gases or dust may be present, compliant with CSA and IECEx/ATEX standards.
+
+Power Supply Options
+Actuators are available in three voltage configurations: 24V AC/DC (low voltage direct or alternating current), 110V Single Phase (standard North American voltage), and 220V Single Phase (common international voltage).
+
+Application Types
+On/Off actuators operate in two positions only — fully open or fully closed. Modulating actuators can be controlled to stop at any point within their 90-degree rotation, enabling precise flow control for process applications.
+
+Key Technical Data Fields
+Base Part Number uniquely identifies each actuator model (e.g., 761A00-11380000/A). Output Torque measures the rotational force the actuator produces, expressed in both in-lbs (inch-pounds) and Nm (Newton-meters) — the primary performance selection criterion. Duty Cycle (S4%) indicates the percentage of time the actuator can operate within a given cycle without overheating. Operating Speed (seconds) measures how long the actuator takes to complete a full 90-degree rotation; AC models may differ between 50 Hz and 60 Hz power frequencies. Full Load Current (FLA) is the electric current in Amps drawn by the motor under maximum rated load. Locked Rotor Current (LRA) is the significantly higher current drawn at motor startup. Motor Power is the internal motor power rating measured in Watts.
+
+Selection Guidance
+Engineers and technicians select Series 76 actuator models based on: required output torque for the valve or damper being controlled, power availability (voltage and phase), duty cycle requirements of the application, enclosure type matching the installation environment (general industrial vs. hazardous area), and whether on/off or modulating control is needed for the process. CSA certification is available on select models for North American regulatory compliance.

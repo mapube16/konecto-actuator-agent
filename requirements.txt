@@ -1,0 +1,17 @@
+fastapi>=0.115
+uvicorn[standard]
+langchain
+langchain-openai
+langgraph
+langgraph-checkpoint-sqlite
+chromadb
+openai
+pydantic
+python-dotenv
+fastmcp
+slowapi
+cachetools
+rapidfuzz
+pytest
+pytest-asyncio
+langsmith
