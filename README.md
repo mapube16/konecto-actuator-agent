@@ -1,7 +1,7 @@
 # Konecto Actuator Agent
 
 > A production-shaped conversational AI service for querying and recommending **Bettis
-> Series 76 electric actuators** — built around a LangGraph ReAct agent, hybrid retrieval
+> Series 76 electric actuators** — built around a LangChain `create_agent` ReAct agent, hybrid retrieval
 > (SQLite exact-match + ChromaDB semantic re-rank), persistent multi-turn memory, an MCP
 > server for external agents, and a **statistical evaluation harness** that measures
 > accuracy, retrieval health, and prompt regressions.
@@ -62,8 +62,8 @@ voltages, enclosures, and application types), extracted from the Series 76 PDF d
                          └───────────────┬───────────────────────┬──────┘       Cursor, agents)
                                          │                        │
                                 ┌────────▼────────┐      ┌────────▼─────────┐
-                                │  LangGraph ReAct │      │   FastMCP server  │
-                                │   agent (agent.py)│     │  (mcp_server.py)  │
+                                │  create_agent    │      │   FastMCP server  │
+                                │  ReAct (agent.py)│      │  (mcp_server.py)  │
                                 │  model: gpt-5-mini│     │ get_actuator /    │
                                 └────────┬─────────┘      │ recommend tools   │
                           tool calls     │                └────────┬──────────┘
@@ -257,6 +257,7 @@ curl -N -X POST http://localhost:8000/api/conversation/stream \
   -H "Content-Type: application/json" \
   -d '{"query": "Recommend a 24V modulating actuator."}'
 # data: {"type":"session","session_id":"..."}
+# data: {"type":"tool_start","name":"recommend"}
 # data: {"type":"token","text":"..."}
 # data: [DONE]
 ```
@@ -268,7 +269,8 @@ curl http://localhost:8000/cache/stats
 # {"actuator_cache":{"size":1,"maxsize":500},"embedding_cache":{"size":0,"maxsize":200}}
 ```
 
-**Rate limit:** all endpoints are limited to `30/minute` per IP (HTTP 429 on exceed).
+**Rate limit:** both conversation endpoints are limited to `30/minute` per IP (HTTP 429
+on exceed); `/health` and `/cache/stats` are unlimited.
 
 ---
 
