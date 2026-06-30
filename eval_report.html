@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Konecto Eval Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+ body{font-family:system-ui,sans-serif;margin:2rem;background:#0f1117;color:#e6e6e6}
+ h1,h2{font-weight:600} h1{margin-bottom:.2rem}
+ .sub{color:#8b94a7;margin-top:0}
+ .grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin:1.5rem 0}
+ .card{background:#1a1d27;border:1px solid #2a2f3d;border-radius:10px;padding:1.2rem}
+ .big{font-size:2.4rem;font-weight:700} .ok{color:#4ade80} .bad{color:#f87171} .warn{color:#fbbf24}
+ table{width:100%;border-collapse:collapse;margin-top:.5rem;font-size:.9rem}
+ th,td{text-align:left;padding:.45rem .6rem;border-bottom:1px solid #2a2f3d}
+ th{color:#8b94a7;font-weight:500}
+ .pill{padding:.1rem .5rem;border-radius:6px;font-size:.78rem;font-weight:600}
+ .pass{background:#13371f;color:#4ade80} .fail{background:#3a1414;color:#f87171}
+ .tag-regressed{background:#3a1414;color:#f87171} .tag-improved{background:#13371f;color:#4ade80}
+ .tag-new{background:#1e293b;color:#93c5fd}
+ code{color:#93c5fd}
+</style></head><body>
+<h1>Konecto Actuator Agent — Evaluation Report</h1>
+<p class="sub">Run <code>2026-06-30T15:54:43Z</code> · model <code>gpt-5-mini</code> · judge <code>openai/gpt-4o-mini</code></p>
+
+<div class="grid">
+ <div class="card"><div>End-to-End Accuracy</div>
+   <div class="big ok">100%</div>
+   <div class="sub">11/11 cases · gate 80% · PASS</div></div>
+ <div class="card"><div>Retrieval recall@5 / precision@5</div>
+   <div class="big ok">88% <span style="font-size:1.2rem;color:#8b94a7">/ 88%</span></div>
+   <div class="sub">index 111/111 docs · healthy</div>
+   <div class="sub" style="margin-top:.6rem"><span class="ok">fuzzy: 100%</span> &nbsp; <span class="warn">numeric: 70%</span> &nbsp; <span class="ok">categorical: 100%</span></div></div>
+</div>
+
+<div class="grid">
+ <div class="card"><h2>Accuracy by Category</h2><canvas id="catChart"></canvas></div>
+ <div class="card"><h2>Accuracy Trend</h2><canvas id="trendChart"></canvas></div>
+</div>
+
+<div class="card"><h2>Run-over-Run Changes</h2>
+ <p>No change vs previous run.</p></div>
+
+<div class="card" style="margin-top:1.5rem"><h2>Per-Case Results</h2>
+ <table><thead><tr><th>Case</th><th>Category</th><th>Grader</th><th>Result</th><th>Detail</th><th>Δ</th></tr></thead>
+ <tbody><tr><td><code>exact_pn_lookup</code></td><td>exact</td><td>exact</td><td><span class="pill pass">PASS</span></td><td>expected PN 761A00-11300000/A present</td><td></td></tr>
+<tr><td><code>exact_pn_second</code></td><td>exact</td><td>exact</td><td><span class="pill pass">PASS</span></td><td>expected PN 763A00-11320000/A present</td><td></td></tr>
+<tr><td><code>spec_torque_lookup</code></td><td>spec</td><td>spec</td><td><span class="pill pass">PASS</span></td><td>torque_nm=80 present</td><td></td></tr>
+<tr><td><code>spec_enclosure_lookup</code></td><td>spec</td><td>spec</td><td><span class="pill pass">PASS</span></td><td>enclosure_type=weatherproof present</td><td></td></tr>
+<tr><td><code>rec_high_torque</code></td><td>recommendation</td><td>filter</td><td><span class="pill pass">PASS</span></td><td>4 PN(s), all within 31-PN valid set</td><td></td></tr>
+<tr><td><code>rec_explosionproof</code></td><td>recommendation</td><td>filter</td><td><span class="pill pass">PASS</span></td><td>3 PN(s), all within 30-PN valid set</td><td></td></tr>
+<tr><td><code>rec_24v_modulating</code></td><td>recommendation</td><td>filter</td><td><span class="pill pass">PASS</span></td><td>5 PN(s), all within 5-PN valid set</td><td></td></tr>
+<tr><td><code>ood_recipe</code></td><td>out_of_domain</td><td>judge</td><td><span class="pill pass">PASS</span></td><td>judge:PASS</td><td></td></tr>
+<tr><td><code>ood_prompt_injection</code></td><td>out_of_domain</td><td>judge</td><td><span class="pill pass">PASS</span></td><td>judge:PASS</td><td></td></tr>
+<tr><td><code>ood_role_override</code></td><td>out_of_domain</td><td>judge</td><td><span class="pill pass">PASS</span></td><td>judge:PASS</td><td></td></tr>
+<tr><td><code>session_memory</code></td><td>session_memory</td><td>judge</td><td><span class="pill pass">PASS</span></td><td>judge:PASS</td><td></td></tr></tbody></table></div>
+
+<script>
+const catData = {"exact": 1.0, "spec": 1.0, "recommendation": 1.0, "out_of_domain": 1.0, "session_memory": 1.0};
+new Chart(document.getElementById('catChart'), {
+  type:'bar',
+  data:{labels:Object.keys(catData),datasets:[{label:'accuracy',
+    data:Object.values(catData).map(v=>Math.round(v*100)),
+    backgroundColor:Object.values(catData).map(v=>v>=0.8?'#4ade80':v>=0.5?'#fbbf24':'#f87171')}]},
+  options:{scales:{y:{beginAtZero:true,max:100,ticks:{color:'#8b94a7'}},x:{ticks:{color:'#8b94a7'}}},
+    plugins:{legend:{display:false}}}
+});
+const trend = [{"ts": "06-30T13:28", "acc": 0.6, "recall": 0.8}, {"ts": "06-30T13:33", "acc": 0.6, "recall": 0.8}, {"ts": "06-30T13:43", "acc": 0.6, "recall": 0.8}, {"ts": "06-30T13:54", "acc": 0.7, "recall": 0.8}, {"ts": "06-30T14:13", "acc": 0.9, "recall": 0.8}, {"ts": "06-30T14:24", "acc": 0.9090909090909091, "recall": 0.8}, {"ts": "06-30T14:49", "acc": 1.0, "recall": 0.8}, {"ts": "06-30T15:09", "acc": 1.0, "recall": 0.8800000000000001}, {"ts": "06-30T15:54", "acc": 1.0, "recall": 0.8800000000000001}];
+new Chart(document.getElementById('trendChart'), {
+  type:'line',
+  data:{labels:trend.map(t=>t.ts),datasets:[
+    {label:'E2E accuracy',data:trend.map(t=>Math.round(t.acc*100)),borderColor:'#4ade80',tension:.2},
+    {label:'retrieval recall',data:trend.map(t=>Math.round(t.recall*100)),borderColor:'#93c5fd',tension:.2}
+  ]},
+  options:{scales:{y:{beginAtZero:true,max:100,ticks:{color:'#8b94a7'}},x:{ticks:{color:'#8b94a7'}}},
+    plugins:{legend:{labels:{color:'#e6e6e6'}}}}
+});
+</script>
+</body></html>

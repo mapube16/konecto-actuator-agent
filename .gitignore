@@ -10,6 +10,5 @@ __pycache__/
 dist/
 .pytest_cache/
 
-# Eval artifacts: run history is local; the HTML report regenerates from `python scripts/eval.py`
-eval_runs/
-eval_report.html
+# Eval artifacts are committed as sample output so reviewers see results without running
+# anything (eval_runs/ snapshot + eval_report.html). Regenerate with `python scripts/eval.py`.

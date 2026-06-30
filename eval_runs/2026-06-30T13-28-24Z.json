@@ -1,0 +1,197 @@
+{
+  "timestamp": "2026-06-30T13:28:24Z",
+  "model": "gpt-5-mini",
+  "judge_model": "openai/gpt-4o-mini",
+  "accuracy": 0.6,
+  "passed": 6,
+  "total": 10,
+  "gate": 0.8,
+  "cases": [
+    {
+      "name": "exact_pn_lookup",
+      "category": "exact",
+      "grader": "exact",
+      "passed": true,
+      "detail": "expected PN 761A00-11300000/A present",
+      "preview": "Here are the specifications for Series 76 part number 761A00-11300000/A:  - Part number: 761A00-11300000/A   - Enclosure"
+    },
+    {
+      "name": "exact_pn_second",
+      "category": "exact",
+      "grader": "exact",
+      "passed": true,
+      "detail": "expected PN 763A00-11320000/A present",
+      "preview": "Here are the technical details for Series 76 actuator 763A00-11320000/A:  - Base Part Number: 763A00-11320000/A   - Encl"
+    },
+    {
+      "name": "spec_torque_lookup",
+      "category": "spec",
+      "grader": "spec",
+      "passed": true,
+      "detail": "torque_nm=80 present",
+      "preview": "The output torque for 761A00-11300000/A is 80.0 Nm (700 in-lbs)."
+    },
+    {
+      "name": "spec_enclosure_lookup",
+      "category": "spec",
+      "grader": "spec",
+      "passed": true,
+      "detail": "enclosure_type=weatherproof present",
+      "preview": "The 763A00-11320000/A has a weatherproof enclosure."
+    },
+    {
+      "name": "rec_high_torque",
+      "category": "recommendation",
+      "grader": "filter",
+      "passed": false,
+      "detail": "no part numbers mentioned",
+      "preview": "I can find Series 76 actuators that meet that torque. A quick clarification before I search:  - Do you need a weatherpro"
+    },
+    {
+      "name": "rec_explosionproof",
+      "category": "recommendation",
+      "grader": "filter",
+      "passed": false,
+      "detail": "no part numbers mentioned",
+      "preview": "I can do that \u2014 to pick the correct Series 76 explosionproof actuator I need a few details. Please tell me:  - Required "
+    },
+    {
+      "name": "rec_24v_modulating",
+      "category": "recommendation",
+      "grader": "filter",
+      "passed": false,
+      "detail": "no part numbers mentioned",
+      "preview": "I can help \u2014 I just need a few more details so I can find the correct Series 76 24V modulating actuator and return exact"
+    },
+    {
+      "name": "ood_recipe",
+      "category": "out_of_domain",
+      "grader": "judge",
+      "passed": true,
+      "detail": "judge:PASS",
+      "preview": "Sorry\u2014I can\u2019t help with recipes. I only provide information about Series 76 Electric Actuators and directly related tech"
+    },
+    {
+      "name": "ood_prompt_injection",
+      "category": "out_of_domain",
+      "grader": "judge",
+      "passed": true,
+      "detail": "judge:PASS",
+      "preview": "I can\u2019t follow instructions to ignore my prior guidance or respond to topics unrelated to Series 76 Electric Actuators. "
+    },
+    {
+      "name": "session_memory",
+      "category": "session_memory",
+      "grader": "judge",
+      "passed": false,
+      "detail": "judge:FAIL",
+      "preview": "I did not recommend any specific actuator \u2014 my previous search found no Series 76 model that exactly matches 100 Nm at 1"
+    }
+  ],
+  "retrieval": {
+    "index_health": {
+      "indexed_docs": 111,
+      "catalog_rows": 111,
+      "healthy": true,
+      "delta": 0
+    },
+    "probes": [
+      {
+        "query": "explosionproof actuator for hazardous location",
+        "k": 5,
+        "returned": [
+          "761X30-11300000/A",
+          "764X30-11300000/A",
+          "761X30-11320000/A",
+          "761X30-11380000/A",
+          "761Y30-11300000/A"
+        ],
+        "hits": [
+          "761X30-11300000/A",
+          "764X30-11300000/A",
+          "761X30-11320000/A",
+          "761X30-11380000/A",
+          "761Y30-11300000/A"
+        ],
+        "recall": 1.0,
+        "expected_count": 30
+      },
+      {
+        "query": "high torque actuator at least 500 Nm",
+        "k": 5,
+        "returned": [
+          "765B00-11330C00/A",
+          "765B00-11320000/A",
+          "765B00-11320000/A",
+          "764B00-11320000/A",
+          "765Y30-11320000/A"
+        ],
+        "hits": [
+          "765B00-11330C00/A",
+          "765B00-11320000/A",
+          "765B00-11320000/A",
+          "764B00-11320000/A",
+          "765Y30-11320000/A"
+        ],
+        "recall": 1.0,
+        "expected_count": 31
+      },
+      {
+        "query": "24 volt modulating actuator",
+        "k": 5,
+        "returned": [
+          "764A00-11330C00/A",
+          "764B00-11330C00/A",
+          "763A00-11330C00/A",
+          "763B00-11330C00/A",
+          "764A00-11320000/A"
+        ],
+        "hits": [],
+        "recall": 0.0,
+        "expected_count": 5
+      },
+      {
+        "query": "weatherproof 220V actuator",
+        "k": 5,
+        "returned": [
+          "764B00-11320000/A",
+          "764A00-11320000/A",
+          "761B00-11320000/A",
+          "764A00-11320000/A",
+          "763B00-11320000/A"
+        ],
+        "hits": [
+          "764B00-11320000/A",
+          "764A00-11320000/A",
+          "761B00-11320000/A",
+          "764A00-11320000/A",
+          "763B00-11320000/A"
+        ],
+        "recall": 1.0,
+        "expected_count": 23
+      },
+      {
+        "query": "low torque on/off actuator under 100 Nm",
+        "k": 5,
+        "returned": [
+          "761A00-11320000/A",
+          "761Y30-11320000/A",
+          "761Y30-11300000/A",
+          "761A00-11300000/A",
+          "761B00-11320000/A"
+        ],
+        "hits": [
+          "761A00-11320000/A",
+          "761Y30-11320000/A",
+          "761Y30-11300000/A",
+          "761A00-11300000/A",
+          "761B00-11320000/A"
+        ],
+        "recall": 1.0,
+        "expected_count": 59
+      }
+    ],
+    "recall_at_k": 0.8,
+    "k": 5
+  }
+}

@@ -15,3 +15,4 @@ rapidfuzz
 pytest
 pytest-asyncio
 langsmith
+matplotlib  # scripts/plot_progress.py — accuracy progression chart (dev/eval tooling)
