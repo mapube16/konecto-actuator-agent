@@ -394,6 +394,32 @@ The FastMCP server is mounted at **`/mcp/`** and exposes two read-only tools:
 - **`get_actuator`** — exact lookup by base part number
 - **`recommend`** — natural-language requirement matching
 
+### Verify the MCP server (no desktop client needed)
+
+With the service running (`docker compose up` or `uvicorn app.main:app`), this connects over
+the MCP HTTP transport, lists the tools, and calls both — the same handshake your AI agent does:
+
+```bash
+pip install fastmcp   # already in requirements.txt
+python - <<'PY'
+import asyncio
+from fastmcp import Client
+
+async def main():
+    async with Client("http://localhost:8000/mcp/") as c:
+        tools = await c.list_tools()
+        print("tools:", [t.name for t in tools])                       # ['get_actuator', 'recommend']
+        r = await c.call_tool("get_actuator", {"part_number": "763A00-11320000/A"})
+        print(r.content[0].text[:120])
+        r = await c.call_tool("recommend", {"requirements": "24V modulating actuator at least 100 Nm"})
+        print(r.content[0].text[:120])
+
+asyncio.run(main())
+PY
+```
+
+Expected: `tools: ['get_actuator', 'recommend']` followed by real specs and recommendations.
+
 ### Claude Desktop
 `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) /
 `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
@@ -442,13 +468,16 @@ answers three questions **with numbers**, and full details are in
 [`docs/EVAL.md`](docs/EVAL.md).
 
 ```bash
-python scripts/eval.py                 # retrieval + 11 E2E cases, HTML report, 80% gate
+python scripts/eval.py                 # retrieval + 11 E2E cases, 80% gate
 python scripts/eval.py --retrieval-only   # fast index-health check, no LLM E2E calls
 python scripts/eval.py --compare-prompts prompts/proactive.txt   # A/B prompt variants
+python scripts/plot_progress.py        # render the accuracy-progression chart (PNG)
 ```
 
-Opens `eval_report.html` — a self-contained Chart.js dashboard (accuracy by category,
-retrieval segments, historical trend, per-case regression tags).
+Each run is saved to `eval_runs/<timestamp>.json` and diffed against the previous one
+(improved / regressed / unchanged per case). `eval.py` also writes a self-contained
+`eval_report.html` dashboard (Chart.js, no server needed — open it in a browser), and
+`scripts/plot_progress.py` turns the run history into the progression chart below.
 
 ### Accuracy was measured, not assumed
 
@@ -563,7 +592,7 @@ konecto-assessment/
 │       ├── retrieval.py   # index health + segmented recall@k/precision@k
 │       ├── cases.py       # declarative test cases
 │       ├── runner.py      # runs cases, dispatches graders
-│       ├── history.py     # run persistence + regression diff
+│       ├── history.py     # run persistence + per-case regression diff
 │       └── report.py      # self-contained HTML report (Chart.js)
 ├── scripts/
 │   ├── ingest.py          # idempotent: JSON → validated → SQLite + ChromaDB
