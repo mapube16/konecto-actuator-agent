@@ -57,3 +57,40 @@ def test_recommend_with_results(sqlite_db, mock_chroma, monkeypatch):
     result = recommend_actuators.invoke({"requirements": "any actuator"})
     assert "Top" in result
     assert "763A00-11300000/A" in result
+
+
+def test_recommend_dedupes_part_numbers(sqlite_db, mock_chroma, monkeypatch):
+    """A PN with two application_type variants must appear once, not twice.
+
+    Regression: the detail query used to SELECT * IN (pns) with no DISTINCT, re-expanding
+    each unique PN back to all its rows → duplicate listings and an inflated 'Top N'.
+    The fixture has 763A00-11300000/A twice (on/off + modulating); Chroma returns it once.
+    """
+    empty_filters = RecommendationFilters()
+    monkeypatch.setattr("app.tools.recommend._extract_filters", lambda req: empty_filters)
+
+    result = recommend_actuators.invoke({"requirements": "any actuator"})
+    assert result.count("763A00-11300000/A") == 1, f"PN listed more than once:\n{result}"
+    assert "Top 1 actuator" in result, f"count should reflect 1 distinct PN:\n{result}"
+
+
+def test_recommend_respects_application_type_filter(sqlite_db, mock_chroma, monkeypatch):
+    """When on/off is requested, the modulating variant of the same PN must not leak in."""
+    onoff = RecommendationFilters(application_type="on/off")
+    monkeypatch.setattr("app.tools.recommend._extract_filters", lambda req: onoff)
+
+    result = recommend_actuators.invoke({"requirements": "on/off actuator"})
+    assert "on/off" in result
+    # The modulating row (torque 13.6 Nm) for the same PN must not appear.
+    assert "13.6" not in result, f"modulating variant leaked into on/off results:\n{result}"
+
+
+def test_fuzzy_suggestions_are_unique(sqlite_db):
+    """Fuzzy 'Did you mean' must not repeat a PN that has multiple variant rows.
+
+    Regression: get_all_part_numbers lacked DISTINCT, so a duplicated PN could fill the
+    limit=3 slots with the same suggestion.
+    """
+    result = get_actuator_by_part_number.invoke({"part_number": "763A00-11300000/B"})
+    assert "Did you mean" in result
+    assert result.count("763A00-11300000/A") == 1, f"duplicate suggestion:\n{result}"

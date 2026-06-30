@@ -17,7 +17,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
 from app.agent import build_agent
-from app.cache import actuator_cache, embedding_cache
+from app.cache import actuator_cache
 from app.config import settings
 from app.db.chroma import init_chroma_collection
 from app.mcp_server import mcp_app
@@ -75,10 +75,7 @@ async def health():
 
 @app.get("/cache/stats")
 async def cache_stats():
-    return {
-        "actuator_cache": {"size": len(actuator_cache), "maxsize": actuator_cache.maxsize},
-        "embedding_cache": {"size": len(embedding_cache), "maxsize": embedding_cache.maxsize},
-    }
+    return {"actuator_cache": {"size": len(actuator_cache), "maxsize": actuator_cache.maxsize}}
 
 
 @app.post("/api/conversation", response_model=ConversationResponse)
@@ -117,7 +114,9 @@ async def conversation_stream(request: Request, req: QueryRequest):
                         yield f"data: {json.dumps({'type': 'token', 'text': token})}\n\n"
             yield "data: [DONE]\n\n"
         except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            # Mirror the global handler: don't leak raw exception text over the stream.
+            logger.exception("Streaming error")
+            yield f"data: {json.dumps({'error': 'Internal server error', 'type': type(e).__name__})}\n\n"
 
     return StreamingResponse(
         event_generator(),

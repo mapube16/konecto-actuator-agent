@@ -78,35 +78,30 @@ def recommend_actuators(requirements: str) -> str:
     where, params = _build_where(filters)
 
     with contextlib.closing(get_sqlite_conn(settings.db_path)) as conn:
-        rows = conn.execute(
-            f"SELECT base_part_number FROM actuators WHERE {where}", params
-        ).fetchall()
-        candidate_pns = [r["base_part_number"] for r in rows]
+        # Fetch full rows that pass the filter, keyed by PN. A PN can have two rows
+        # (on/off + modulating); when application_type is filtered, _build_where already
+        # excludes the wrong variant, so first-seen per PN is the correct one to show.
+        candidates: dict[str, sqlite3.Row] = {}
+        for row in conn.execute(f"SELECT * FROM actuators WHERE {where}", params):
+            candidates.setdefault(row["base_part_number"], row)
 
-        if not candidate_pns:
+        if not candidates:
             return "No actuators match those requirements. Try relaxing constraints (e.g., lower torque minimum or broader voltage)."
 
         try:
             collection = get_chroma_collection(settings)
-            n_results = min(5, len(candidate_pns), collection.count())
+            n_results = min(5, len(candidates), collection.count())
             if n_results == 0:
                 raise ValueError("ChromaDB collection is empty")
             results = collection.query(
                 query_texts=[requirements],
                 n_results=n_results,
-                where={"base_part_number": {"$in": candidate_pns}},
+                where={"base_part_number": {"$in": list(candidates)}},
             )
-            top_pns = list(dict.fromkeys(m["base_part_number"] for m in results["metadatas"][0]))
-            placeholders = ",".join("?" * len(top_pns))
-            detail_rows = conn.execute(
-                f"SELECT * FROM actuators WHERE base_part_number IN ({placeholders})", top_pns
-            ).fetchall()
-            return _format_recommendations(detail_rows)
+            # Chroma may return both variants of a PN; dedupe to ranked unique PNs.
+            ranked_pns = list(dict.fromkeys(m["base_part_number"] for m in results["metadatas"][0]))
+            top_rows = [candidates[pn] for pn in ranked_pns if pn in candidates]
+            return _format_recommendations(top_rows)
         except Exception as e:
             logger.warning("ChromaDB query failed, falling back to SQL results: %s", e)
-            placeholders = ",".join("?" * len(candidate_pns[:5]))
-            fallback_rows = conn.execute(
-                f"SELECT * FROM actuators WHERE base_part_number IN ({placeholders})",
-                candidate_pns[:5],
-            ).fetchall()
-            return _format_recommendations(fallback_rows)
+            return _format_recommendations(list(candidates.values())[:5])

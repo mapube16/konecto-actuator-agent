@@ -22,7 +22,9 @@ async def get_actuator(part_number: str) -> str:
     Args:
         part_number: The Base Part Number (e.g., '763A00-11300000/A').
     """
-    return get_actuator_by_part_number.invoke({"part_number": part_number})
+    # ainvoke runs the sync tool in a threadpool so the blocking DB/LLM call
+    # doesn't stall the FastMCP event loop (matches the HTTP path's await ainvoke).
+    return await get_actuator_by_part_number.ainvoke({"part_number": part_number})
 
 
 @mcp.tool(annotations=_READ_ONLY)
@@ -32,4 +34,4 @@ async def recommend(requirements: str) -> str:
     Args:
         requirements: Natural language description (e.g., 'explosionproof 300 Nm 220V').
     """
-    return recommend_actuators.invoke({"requirements": requirements})
+    return await recommend_actuators.ainvoke({"requirements": requirements})

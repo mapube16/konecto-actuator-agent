@@ -19,5 +19,7 @@ def get_all_part_numbers(conn: sqlite3.Connection) -> list[str]:
 
     Used by rapidfuzz fallback in Tool 1.
     """
-    cursor = conn.execute("SELECT base_part_number FROM actuators")
+    # DISTINCT: a PN has one row per application_type variant; the fuzzy fallback
+    # must suggest unique part numbers, not the same PN twice.
+    cursor = conn.execute("SELECT DISTINCT base_part_number FROM actuators")
     return [row[0] for row in cursor.fetchall()]

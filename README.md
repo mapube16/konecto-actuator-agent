@@ -175,9 +175,14 @@ data/actuators.db  +  data/chroma/
 # Requires OPENROUTER_API_KEY. Reads data/raw/series_76_tables.pdf,
 # writes data/actuators.json (validated against the Pydantic schema).
 python scripts/extract_pdf.py
-# or point at a different PDF:
-python scripts/extract_pdf.py path/to/another.pdf
+# or point at a different PDF (e.g. the assessment's series_76_electric_data.pdf):
+python scripts/extract_pdf.py path/to/series_76_electric_data.pdf
 ```
+
+> **Note:** re-extraction is **optional** — `data/actuators.json` is already committed, so
+> `ingest.py` alone reproduces the databases. The bundled `data/raw/series_76_tables.pdf` is
+> the assessment's `series_76_electric_data.pdf` (renamed); pass your own path as the argument
+> above if you want to re-run extraction against a different file.
 
 **Stage 2 — ingest (always required before first run):**
 ```bash
@@ -230,7 +235,6 @@ All config is environment-driven (`app/config.py`, Pydantic `BaseSettings`). See
 | `CHROMA_PATH` | `data/chroma` | Vector index dir |
 | `MEMORY_DB_PATH` | `data/memory.db` | Conversation checkpointer DB |
 | `RATE_LIMIT` | `30/minute` | Per-IP rate limit |
-| `GOOGLE_API_KEY` | — | (Optional) Gemini, for PDF extraction experiments |
 | `OPENROUTER_API_KEY` | — | (Optional) eval LLM-judge + `scripts/extract_pdf.py` |
 | `EVAL_JUDGE_MODEL` | `openai/gpt-4o-mini` | (Optional) OpenRouter model for the eval judge |
 
@@ -274,10 +278,10 @@ curl -N -X POST http://localhost:8000/api/conversation/stream \
 ```
 
 ### `GET /cache/stats`
-In-memory TTL cache occupancy (actuator lookups: maxsize 500; embeddings: maxsize 200; 1h TTL).
+In-memory TTL cache occupancy for actuator part-number lookups (maxsize 500, 1h TTL).
 ```bash
 curl http://localhost:8000/cache/stats
-# {"actuator_cache":{"size":1,"maxsize":500},"embedding_cache":{"size":0,"maxsize":200}}
+# {"actuator_cache":{"size":1,"maxsize":500}}
 ```
 
 **Rate limit:** both conversation endpoints are limited to `30/minute` per IP (HTTP 429
@@ -313,7 +317,23 @@ The FastMCP server is mounted at **`/mcp/`** and exposes two read-only tools:
 }
 ```
 
-External agents should load **`SKILL.md`** to discover tool schemas before connecting.
+### Install the Agent Skill
+
+The skill manifest is [`SKILL.md`](SKILL.md) at the repo root. Install it by copying it into
+your agent's skills directory under a named folder (the folder name becomes the skill ID):
+
+```bash
+# Claude Code / Claude Desktop — user-level (available in every project):
+mkdir -p ~/.claude/skills/recommending-actuators
+cp SKILL.md ~/.claude/skills/recommending-actuators/SKILL.md
+
+# …or project-level (scoped to one repo): copy to .claude/skills/recommending-actuators/SKILL.md
+# Cursor: copy to .cursor/skills/recommending-actuators/SKILL.md
+```
+
+Then start the service (`docker compose up` or `uvicorn app.main:app`) so the MCP endpoint at
+`http://localhost:8000/mcp/` is reachable, and reload your agent. The skill drives the two MCP
+tools (`get_actuator`, `recommend`) to accomplish actuator lookup and recommendation tasks.
 
 ---
 
@@ -402,7 +422,7 @@ konecto-assessment/
 │   ├── agent.py           # langchain.agents.create_agent + AsyncSqliteSaver memory
 │   ├── prompts.py         # System prompt (proactive recommend + security guardrails)
 │   ├── config.py          # Pydantic BaseSettings (env-driven)
-│   ├── cache.py           # In-memory TTL caches (cachetools, 1h TTL)
+│   ├── cache.py           # In-memory TTL cache for part-number lookups (cachetools, 1h TTL)
 │   ├── mcp_server.py      # FastMCP server, mounted at /mcp/
 │   ├── db/
 │   │   ├── schema.py      # Pydantic Actuator model (ingest validation)

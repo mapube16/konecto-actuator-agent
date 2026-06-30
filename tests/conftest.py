@@ -22,9 +22,13 @@ COLUMNS = [
 ]
 
 TEST_ROWS = [
-    ("763A00-11300000/A", "NEMA4", "115/1/60", "single", "quarter-turn",
+    ("763A00-11300000/A", "NEMA4", "115/1/60", "single", "on/off",
      130, 14.7, 25, 60, 150, 12, 14, 1.2, 1.0, 6.0, 5.0, 85, 1),
-    ("763B00-21300000/A", "explosion-proof", "230/1/60", "single", "throttling",
+    # Same PN as above, different application_type variant — mirrors the real catalog
+    # (64 unique PNs across 111 rows) so the dedup path in recommend/fuzzy is exercised.
+    ("763A00-11300000/A", "NEMA4", "115/1/60", "single", "modulating",
+     120, 13.6, 25, 60, 150, 12, 14, 1.2, 1.0, 6.0, 5.0, 85, 1),
+    ("763B00-21300000/A", "explosion-proof", "230/1/60", "single", "modulating",
      265, 29.9, 100, 30, 100, 15, 18, 2.1, 1.8, 10.0, 8.5, 150, 0),
 ]
 
@@ -55,6 +59,7 @@ def sqlite_db(tmp_path, monkeypatch):
 def mock_chroma():
     """Stub _chroma_collection so recommend_actuators skips OpenAI embedding calls."""
     stub = MagicMock()
+    stub.count.return_value = 3  # int so min(5, len, count()) works → exercises the Chroma path
     stub.query.return_value = {
         "metadatas": [[{"base_part_number": "763A00-11300000/A"}]]
     }

@@ -1,7 +1,6 @@
 """ChromaDB PersistentClient setup with anonymized_telemetry=False and actuators collection initialization."""
 
 import chromadb
-import chromadb.errors
 from chromadb.config import Settings as ChromaSettings  # ponytail: alias avoids collision with app Settings
 from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
 
@@ -26,7 +25,7 @@ def init_chroma_collection(settings):
     )
     try:
         _chroma_collection = client.get_collection(name="actuators", embedding_function=ef)
-    except (chromadb.errors.InvalidCollectionException, Exception) as exc:
+    except Exception as exc:
         if "does not exist" in str(exc).lower() or "not found" in str(exc).lower() or "invalidcollection" in type(exc).__name__.lower():
             raise ValueError("ChromaDB collection 'actuators' not found — run scripts/ingest.py first") from exc
         raise
