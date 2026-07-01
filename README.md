@@ -624,7 +624,7 @@ konecto-assessment/
 
 Full ADRs in [`DECISIONS.md`](DECISIONS.md). How this was built with AI (tools, phased
 workflow, and where the AI was kept on a short leash) is in
-[`docs/AI_DEVELOPMENT.md`](docs/AI_DEVELOPMENT.md). The decisions worth knowing up front:
+[`.claude/AI_DEVELOPMENT.md`](.claude/AI_DEVELOPMENT.md). The decisions worth knowing up front:
 
 - **Hybrid retrieval (SQL hard-filter + vector re-rank), not pure RAG.** Specs are exact
   facts. "Does this meet 100 Nm?" is a `WHERE`, not a similarity score. SQL guarantees
