@@ -40,7 +40,24 @@ def pns_matching(
     """Compute the set of PNs that satisfy hard filters — the ground truth a
     correct recommendation must draw from. Mirrors recommend_actuators' SQL filter.
     """
-    out = set()
+    return {r["base_part_number"] for r in rows_matching(
+        torque_nm_min=torque_nm_min, voltage=voltage,
+        enclosure_type=enclosure_type, application_type=application_type,
+    )}
+
+
+def rows_matching(
+    *,
+    torque_nm_min: float | None = None,
+    voltage: str | None = None,
+    enclosure_type: str | None = None,
+    application_type: str | None = None,
+) -> list[dict]:
+    """Full rows (PN, torque, application_type, ...) that satisfy the hard filters — the
+    variant-level ground truth. A grader can check not just that a PN is valid, but that
+    the specific torque shown belongs to a real row that passes the filter.
+    """
+    out = []
     for r in _rows():
         if torque_nm_min is not None and r["torque_nm"] < torque_nm_min:
             continue
@@ -53,7 +70,7 @@ def pns_matching(
             "on/off and modulating",
         ):
             continue
-        out.add(r["base_part_number"])
+        out.append(dict(r))
     return out
 
 

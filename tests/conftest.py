@@ -60,8 +60,10 @@ def mock_chroma():
     """Stub _chroma_collection so recommend_actuators skips OpenAI embedding calls."""
     stub = MagicMock()
     stub.count.return_value = 3  # int so min(5, len, count()) works → exercises the Chroma path
+    # Metadata carries application_type (mirrors the real ingest): recommend ranks by
+    # (PN, application_type) so a PN's on/off and modulating rows are distinct options.
     stub.query.return_value = {
-        "metadatas": [[{"base_part_number": "763A00-11300000/A"}]]
+        "metadatas": [[{"base_part_number": "763A00-11300000/A", "application_type": "on/off"}]]
     }
     chroma_module._chroma_collection = stub
     yield stub

@@ -64,8 +64,9 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    # Log the exception type for debugging; don't leak it to the client (info disclosure).
     logger.exception("Unhandled exception")
-    return JSONResponse(status_code=500, content={"error": "Internal server error", "type": type(exc).__name__})
+    return JSONResponse(status_code=500, content={"error": "Internal server error"})
 
 
 @app.get("/health")
@@ -113,10 +114,10 @@ async def conversation_stream(request: Request, req: QueryRequest):
                     if token:
                         yield f"data: {json.dumps({'type': 'token', 'text': token})}\n\n"
             yield "data: [DONE]\n\n"
-        except Exception as e:
-            # Mirror the global handler: don't leak raw exception text over the stream.
+        except Exception:
+            # Mirror the global handler: don't leak exception text or type over the stream.
             logger.exception("Streaming error")
-            yield f"data: {json.dumps({'error': 'Internal server error', 'type': type(e).__name__})}\n\n"
+            yield f"data: {json.dumps({'error': 'Internal server error'})}\n\n"
 
     return StreamingResponse(
         event_generator(),

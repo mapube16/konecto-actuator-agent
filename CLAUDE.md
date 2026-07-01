@@ -9,7 +9,7 @@ Quick pointers:
 - **Architecture & decisions:** [AGENTS.md](AGENTS.md) and [DECISIONS.md](DECISIONS.md) (ADRs).
 - **Setup, Docker, API, MCP config:** [README.md](README.md).
 - **Evaluation harness (accuracy, retrieval health, regression):** [docs/EVAL.md](docs/EVAL.md).
-- **Security model (7 layers, verified):** [SECURITY.md](SECURITY.md).
+- **Security model (baseline controls per layer + known gaps):** [SECURITY.md](SECURITY.md).
 
 Two rules that are easy to get wrong:
 

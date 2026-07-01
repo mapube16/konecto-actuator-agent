@@ -59,19 +59,38 @@ def test_recommend_with_results(sqlite_db, mock_chroma, monkeypatch):
     assert "763A00-11300000/A" in result
 
 
-def test_recommend_dedupes_part_numbers(sqlite_db, mock_chroma, monkeypatch):
-    """A PN with two application_type variants must appear once, not twice.
+def test_recommend_ranks_by_variant(sqlite_db, mock_chroma, monkeypatch):
+    """Chroma ranks by (PN, application_type): the specific variant it matched is the one
+    whose specs are shown — not an arbitrary row for that PN.
 
-    Regression: the detail query used to SELECT * IN (pns) with no DISTINCT, re-expanding
-    each unique PN back to all its rows → duplicate listings and an inflated 'Top N'.
-    The fixture has 763A00-11300000/A twice (on/off + modulating); Chroma returns it once.
+    The fixture has 763A00-11300000/A twice (on/off @ some torque + modulating @ another).
+    Chroma's metadata says it matched the on/off variant, so the on/off row's specs appear,
+    and exactly once (the modulating row is a different candidate Chroma didn't return here).
     """
     empty_filters = RecommendationFilters()
     monkeypatch.setattr("app.tools.recommend._extract_filters", lambda req: empty_filters)
 
     result = recommend_actuators.invoke({"requirements": "any actuator"})
-    assert result.count("763A00-11300000/A") == 1, f"PN listed more than once:\n{result}"
-    assert "Top 1 actuator" in result, f"count should reflect 1 distinct PN:\n{result}"
+    assert result.count("763A00-11300000/A") == 1, f"variant listed more than once:\n{result}"
+    assert "on/off" in result, f"the matched on/off variant should be shown:\n{result}"
+    assert "Top 1 actuator" in result, f"one ranked variant expected:\n{result}"
+
+
+def test_recommend_both_variants_keep_own_specs(sqlite_db, mock_chroma, monkeypatch):
+    """When Chroma ranks both variants of a PN, each keeps ITS OWN torque — the bug was
+    collapsing to one arbitrary variant's specs. Here Chroma returns on/off then modulating
+    for the same PN; both must appear, each with the torque of its own row."""
+    empty_filters = RecommendationFilters()
+    monkeypatch.setattr("app.tools.recommend._extract_filters", lambda req: empty_filters)
+    mock_chroma.query.return_value = {
+        "metadatas": [[
+            {"base_part_number": "763A00-11300000/A", "application_type": "on/off"},
+            {"base_part_number": "763A00-11300000/A", "application_type": "modulating"},
+        ]]
+    }
+    result = recommend_actuators.invoke({"requirements": "any actuator"})
+    assert "on/off" in result and "modulating" in result, f"both variants expected:\n{result}"
+    assert "Top 2 actuator" in result, f"two distinct variants expected:\n{result}"
 
 
 def test_recommend_respects_application_type_filter(sqlite_db, mock_chroma, monkeypatch):

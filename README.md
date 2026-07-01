@@ -3,8 +3,8 @@
 > A production-shaped conversational AI service for querying and recommending **Bettis
 > Series 76 electric actuators** — built around a LangChain `create_agent` ReAct agent, hybrid retrieval
 > (SQLite exact-match + ChromaDB semantic re-rank), persistent multi-turn memory, an MCP
-> server for external agents, and a **statistical evaluation harness** that measures
-> accuracy, retrieval health, and prompt regressions.
+> server for external agents, and an **evaluation harness** that measures accuracy,
+> retrieval health, and prompt regressions with a mix of deterministic and LLM-judge graders.
 
 ---
 
@@ -111,7 +111,10 @@ O(1), no embedding involved. Fuzzy match (`rapidfuzz`) suggests the right PN on 
 
 **Multi-turn:** every request carries a `session_id` → mapped to a LangGraph `thread_id`
 → persisted by `AsyncSqliteSaver`. Follow-ups ("what's its enclosure?") resolve against
-prior turns without re-sending history.
+prior turns — the *client* only sends the new message; the checkpointer replays the stored
+history to the model each turn. (Note: that means token cost grows with conversation length;
+there's no trimming/summarization yet — a fine trade-off at this scale, a knob to add at
+larger ones.)
 
 ---
 
@@ -463,8 +466,9 @@ tools (`get_actuator`, `recommend`) to accomplish actuator lookup and recommenda
 
 ## Evaluation & quality
 
-A statistical evaluation harness lives in `app/eval/`, driven by `scripts/eval.py`. It
-answers three questions **with numbers**, and full details are in
+An evaluation harness lives in `app/eval/`, driven by `scripts/eval.py`. It's a focused
+suite (11 E2E cases + retrieval probes), not a large statistical sample — enough to gate
+regressions and catch the failure modes that matter here. Full details in
 [`docs/EVAL.md`](docs/EVAL.md).
 
 ```bash
@@ -618,7 +622,9 @@ konecto-assessment/
 
 ## Design decisions
 
-Full ADRs in [`DECISIONS.md`](DECISIONS.md). The ones worth knowing up front:
+Full ADRs in [`DECISIONS.md`](DECISIONS.md). How this was built with AI (tools, phased
+workflow, and where the AI was kept on a short leash) is in
+[`docs/AI_DEVELOPMENT.md`](docs/AI_DEVELOPMENT.md). The decisions worth knowing up front:
 
 - **Hybrid retrieval (SQL hard-filter + vector re-rank), not pure RAG.** Specs are exact
   facts. "Does this meet 100 Nm?" is a `WHERE`, not a similarity score. SQL guarantees
@@ -643,16 +649,24 @@ Full ADRs in [`DECISIONS.md`](DECISIONS.md). The ones worth knowing up front:
 
 ## Security
 
-Seven-layer defense-in-depth, audited in [`SECURITY.md`](SECURITY.md):
+Standard security hygiene applied at each layer of the stack, audited in
+[`SECURITY.md`](SECURITY.md). Nothing exotic — the point is that the obvious controls are
+all present and verified, not skipped:
 
 1. **Container** — non-root UID 10001, multi-stage minimal image, tini PID 1
 2. **Database** — parameterized SQL only (no string interpolation of user values)
 3. **Input** — Pydantic validation (length caps, `session_id` charset pattern)
 4. **Prompt** — guardrails refuse off-topic deliverables and instruction-override attempts
-   (verified by eval prompt-injection cases)
+   (exercised by eval prompt-injection cases — but note the judge degrades to a non-empty
+   check without `OPENROUTER_API_KEY`; the real defense is the system prompt itself)
 5. **MCP** — read-only tools (`readOnlyHint`)
 6. **Rate limiting** — slowapi 30/min per IP (`SlowAPIMiddleware`)
 7. **Secrets** — env-driven, never committed; `.env` is gitignored
+
+**Known limitation:** `session_id` is client-supplied and only format-validated
+(`[a-zA-Z0-9-]+`) — there's no auth, so anyone who knows/guesses a session id can read that
+conversation. Acceptable for a stateless catalog assistant (no sensitive data), but it's a
+real isolation gap, not a solved problem. Per-user auth would be the production fix.
 
 ---
 

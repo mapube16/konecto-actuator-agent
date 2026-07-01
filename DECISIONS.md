@@ -40,7 +40,7 @@ Use SQLite for exact/structured lookups and ChromaDB for semantic similarity. `g
 - (+) Each store handles its optimal query type — no hallucinations on ID lookup, no rigidity on NL
 - (+) SQL-first filtering before semantic ranking retains candidates that the embedding might have ranked low
 - (-) Two systems to operate and keep in sync during ingest
-- The dataset is ~40 rows; operational overhead is negligible
+- The dataset is 111 rows (64 distinct part numbers × application-type variants); operational overhead is negligible
 
 ---
 
@@ -61,6 +61,12 @@ Structured extraction: the LLM populates a `RecommendationFilters` Pydantic mode
 - (+) `Literal` enums make extraction robust to noise: the eval harness caught the LLM extracting `application_type="Series 76"` (the product name) from a plain torque query, which silently filtered every recommendation to zero rows. Constraining to real values forces such noise to `None` instead. This is the "ambiguous query" robustness the brief asks for.
 - (+) Cleaner schema boundary — the LLM does language understanding, Python does data access
 - (-) Less flexible than text-to-SQL for ad-hoc queries; the schema of ~18 columns must be known upfront
+- (-) **Extra LLM round-trip:** the agent already reasons over the NL query to decide to call
+  the tool, then `_extract_filters` makes a *second* LLM call to pull structured filters from
+  the same text — so a REST recommendation is 2–3 sequential model calls. The cleaner design is
+  to expose the structured fields as tool arguments the agent fills directly (keeping the free
+  text only for the external MCP consumer). Left as-is here because the extra call is cheap on
+  `gpt-5-mini` and keeps the tool self-contained; it's the first thing I'd change for latency.
 - For a fixed-schema domain of 64 part numbers, flexibility is not a real requirement
 
 ---

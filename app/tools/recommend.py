@@ -78,16 +78,19 @@ def recommend_actuators(requirements: str) -> str:
     where, params = _build_where(filters)
 
     with contextlib.closing(get_sqlite_conn(settings.db_path)) as conn:
-        # Fetch full rows that pass the filter, keyed by PN. A PN can have two rows
-        # (on/off + modulating); when application_type is filtered, _build_where already
-        # excludes the wrong variant, so first-seen per PN is the correct one to show.
-        candidates: dict[str, sqlite3.Row] = {}
+        # Key by (PN, application_type): a base PN can have an on/off row AND a modulating
+        # row with DIFFERENT torque (e.g. 761A00-11300000/A is 80 Nm on/off, 65 Nm
+        # modulating). Collapsing to one row per PN would show an arbitrary variant's specs
+        # (whichever the query planner returns first). They are distinct recommendable
+        # options, so each variant is its own candidate.
+        candidates: dict[tuple[str, str], sqlite3.Row] = {}
         for row in conn.execute(f"SELECT * FROM actuators WHERE {where}", params):
-            candidates.setdefault(row["base_part_number"], row)
+            candidates[(row["base_part_number"], row["application_type"])] = row
 
         if not candidates:
             return "No actuators match those requirements. Try relaxing constraints (e.g., lower torque minimum or broader voltage)."
 
+        pns = list({pn for pn, _ in candidates})  # unique PNs for the Chroma metadata filter
         try:
             collection = get_chroma_collection(settings)
             n_results = min(5, len(candidates), collection.count())
@@ -96,12 +99,20 @@ def recommend_actuators(requirements: str) -> str:
             results = collection.query(
                 query_texts=[requirements],
                 n_results=n_results,
-                where={"base_part_number": {"$in": list(candidates)}},
+                where={"base_part_number": {"$in": pns}},
             )
-            # Chroma may return both variants of a PN; dedupe to ranked unique PNs.
-            ranked_pns = list(dict.fromkeys(m["base_part_number"] for m in results["metadatas"][0]))
-            top_rows = [candidates[pn] for pn in ranked_pns if pn in candidates]
-            return _format_recommendations(top_rows)
+            # Chroma metadata carries both PN and application_type; rank by (PN, app) so the
+            # exact variant Chroma matched is the one whose specs we show.
+            seen: set[tuple[str, str]] = set()
+            top_rows = []
+            for m in results["metadatas"][0]:
+                key = (m["base_part_number"], m.get("application_type"))
+                if key in candidates and key not in seen:
+                    seen.add(key)
+                    top_rows.append(candidates[key])
+            if top_rows:
+                return _format_recommendations(top_rows)
+            raise ValueError("no ranked variant matched the candidate set")
         except Exception as e:
             logger.warning("ChromaDB query failed, falling back to SQL results: %s", e)
             return _format_recommendations(list(candidates.values())[:5])

@@ -39,9 +39,17 @@ def grade_spec(response: str, part_number: str, field: str) -> tuple[bool, str]:
     return ok, f"{field}={needle} {'present' if ok else 'ABSENT'}"
 
 
-def grade_filter(response: str, expected_pns: set[str]) -> tuple[bool, str]:
-    """Pass if every PN the response mentions belongs to the valid set, and at
-    least one valid PN is mentioned. Catches hallucinated / out-of-spec PNs.
+# A recommendation line pairs a PN with a torque, e.g.
+#   "1. 761X30-11320000/A — explosionproof, 220V, 80.0 Nm (690.0 in-lbs), on/off"
+_PN_TORQUE_RE = re.compile(r"(\d{3}[A-Z]\d{2}-[0-9A-Z]+/[A-Z]).*?([\d.]+)\s*Nm")
+
+
+def grade_filter(response: str, expected_pns: set[str], valid_rows: list[dict] | None = None) -> tuple[bool, str]:
+    """Pass if every PN mentioned is in the valid set AND (when valid_rows is given) every
+    (PN, torque) pair shown matches a real row that passes the filter.
+
+    Membership alone (PN in set) can't catch a wrong-variant bug: a PN may be valid while the
+    torque shown belongs to its other application_type variant. valid_rows closes that gap.
     """
     mentioned = set(_PN_RE.findall(response))
     if not mentioned:
@@ -49,7 +57,16 @@ def grade_filter(response: str, expected_pns: set[str]) -> tuple[bool, str]:
     invalid = mentioned - expected_pns
     if invalid:
         return False, f"mentioned out-of-spec PNs: {sorted(invalid)[:3]}"
-    return True, f"{len(mentioned)} PN(s), all within {len(expected_pns)}-PN valid set"
+
+    if valid_rows is not None:
+        # Set of (PN, torque) that are actually valid — torque rounded for text matching.
+        valid_pairs = {(r["base_part_number"], round(float(r["torque_nm"]), 1)) for r in valid_rows}
+        for pn, torque_str in _PN_TORQUE_RE.findall(response):
+            pair = (pn, round(float(torque_str), 1))
+            if pair not in valid_pairs:
+                return False, f"shown {pn} @ {torque_str} Nm is not a valid variant (wrong torque?)"
+
+    return True, f"{len(mentioned)} PN(s), all valid" + ("" if valid_rows is None else " incl. torque")
 
 
 def grade_nonempty(response: str) -> tuple[bool, str]:
@@ -109,6 +126,12 @@ if __name__ == "__main__":
     assert ok, "grade_filter should pass an in-set PN"
     ok, _ = grade_filter(f"I recommend {plain_pn}.", set())
     assert not ok, "grade_filter should fail an out-of-set PN"
+    # Variant-aware: a valid PN shown with a torque that isn't one of its valid rows fails.
+    rows = [{"base_part_number": plain_pn, "torque_nm": 80.0}]
+    ok, _ = grade_filter(f"1. {plain_pn} — 80.0 Nm, on/off", {plain_pn}, rows)
+    assert ok, "grade_filter should pass a correct (PN, torque) pair"
+    ok, why = grade_filter(f"1. {plain_pn} — 999.0 Nm, on/off", {plain_pn}, rows)
+    assert not ok, f"grade_filter should fail a wrong-variant torque — got: {why}"
     ok, _ = grade_nonempty("")
     assert not ok, "grade_nonempty should fail on empty"
-    print("OK — graders return correct verdicts")
+    print("OK — graders return correct verdicts (incl. variant-aware torque)")

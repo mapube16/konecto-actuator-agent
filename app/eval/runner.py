@@ -46,7 +46,8 @@ def _run_case(agent, case: dict) -> dict:
             passed, detail = graders.grade_spec(response, case["part_number"], case["field"])
         elif grader == "filter":
             valid = catalog.pns_matching(**case["filters"])
-            passed, detail = graders.grade_filter(response, valid)
+            valid_rows = catalog.rows_matching(**case["filters"])
+            passed, detail = graders.grade_filter(response, valid, valid_rows)
         elif grader == "judge":
             query = case.get("query") or (case.get("turns", [""])[-1])
             passed, detail = graders.grade_judge(response, case["rubric"], query=query)

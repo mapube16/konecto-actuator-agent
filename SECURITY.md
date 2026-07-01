@@ -1,7 +1,9 @@
 # Security Verification Checklist — INFRA-04
 
-Defense-in-depth audit for the Konecto Actuator Agent. Each layer is verified against
-the actual source with a precise file:identifier citation.
+Security checklist for the Konecto Actuator Agent — standard controls applied at each layer
+of the stack (container, DB, input, prompt, MCP, rate-limit, secrets), each cited against the
+actual source. These are baseline hygiene, not exotic hardening; the value is that the obvious
+controls are present and checked rather than assumed.
 
 | # | Layer | Status | Evidence |
 |---|-------|--------|----------|
@@ -15,10 +17,17 @@ the actual source with a precise file:identifier citation.
 
 ## Notes
 
-- **Layer 4 — recommend.py f-string clarification:** The f-string in `_build_where` and the
-  subsequent `f"SELECT ... WHERE base_part_number IN ({placeholders})"` interpolate only the
-  `?` placeholder count (an integer derived from `len(top_pns)`) and hard-coded column names.
-  User-provided values never touch the query string; they travel exclusively through the
-  `params` list passed as the second argument to `conn.execute()`.
+- **Layer 4 — recommend.py f-string clarification:** `recommend_actuators` builds one query,
+  `f"SELECT * FROM actuators WHERE {where}"`, where `{where}` comes from `_build_where` and
+  contains only `?` placeholders and hard-coded column names — never user input. Every
+  user-supplied value travels through the `params` list passed as the second argument to
+  `conn.execute()`. The part-number set is applied afterward as a **ChromaDB metadata
+  filter** (`where={"base_part_number": {"$in": pns}}`), not as a SQL string — so no
+  user-derived value is ever interpolated into a SQL statement.
 
-- All 7 layers present and verified. No remediation items.
+- All 7 baseline controls present and verified against source.
+- **Known gaps (not remediated, by scope):** (1) `session_id` is client-supplied and only
+  format-validated — no auth, so conversation isolation relies on ids being unguessable;
+  (2) the prompt-injection guardrail's eval verification degrades to a non-empty check
+  without `OPENROUTER_API_KEY` — the real defense is the system prompt, not the eval. Both
+  are acceptable for a stateless catalog assistant; per-user auth is the production fix.

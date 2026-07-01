@@ -156,6 +156,10 @@ def main() -> None:
     metadatas = [
         {
             "base_part_number": a.base_part_number,
+            # application_type is part of the identity: a PN has distinct on/off vs
+            # modulating rows with different torque. recommend.py ranks by (PN, app) so it
+            # must be in the metadata, not just the id.
+            "application_type": a.application_type,
             "enclosure_type": a.enclosure_type,
             "voltage": a.voltage,
             "torque_nm": a.torque_nm,
